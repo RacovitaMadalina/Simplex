@@ -6,14 +6,16 @@ from two_phase_algorithm.standard_form_conversion import *
 
 
 def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
+    if optimization_type == "max":
+        z, z_free_term = from_max_to_min_conversion(z, z_free_term)
+        optimization_type = "min"
+
     original_z = z.copy()
-    lp_system, labels_vars_from_base = convert_system_to_standard_form(lp_system, initial_no_vars=len(lp_system[0]) - 2)
-    logger.info(labels_vars_from_base)
-    logger.info('\n' + str(pd.DataFrame(lp_system)))
-    # logger.info('The converted system is: \n\n' +
-    #             str(pd.DataFrame(lp_system,
-    #                              columns=get_column_names_standard_form(len(lp_system[0])),
-    #                              index=labels_vars_from_base)) + '\n\n')
+
+    logger.info("Started to prepare the system for the two phase algorithm. \n\n")
+
+    lp_system, labels_vars_from_base = prepare_system_for_two_phase_algorithm(lp_system,
+                                                                              initial_no_vars=len(lp_system[0]) - 2)
 
 
 if __name__ == '__main__':

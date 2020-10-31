@@ -1,4 +1,5 @@
 from two_phase_algorithm.config import logger
+from two_phase_algorithm.utils import *
 
 
 def add_slack_excess_column_to_equations(lp_system):
@@ -9,6 +10,17 @@ def add_slack_excess_column_to_equations(lp_system):
         equation[-3] = 0
         new_matrix.append(equation)
     return new_matrix
+
+
+def from_max_to_min_conversion(z, z_free_term):
+    return [(-1) * cost for cost in z], (-1) * z_free_term
+
+
+def reverse_if_rhs_negative(lp_system):
+    for i in range(len(lp_system)):
+        if lp_system[i][-1] < 0:
+            lp_system[i] = [(-1) * term for term in lp_system[i][:-2]] + ['E'] + [(-1) * lp_system[i][-1]]
+    return lp_system
 
 
 def convert_system_to_standard_form(lp_system, initial_no_vars):
@@ -23,27 +35,71 @@ def convert_system_to_standard_form(lp_system, initial_no_vars):
     logger.info('Added columns for the slack / excess variables.')
 
     # convert each equation to standard form
-    new_matrix = []
     slack_excess_var_index_start = initial_no_vars
     labels_base = []
 
-    for equation in lp_system:
-        if 'LT' in equation:
-            new_matrix.append(convert_equation_to_standard_form(equation, slack_excess_var_index_start))
-            labels_base.append(slack_excess_var_index_start)
-            slack_excess_var_index_start += 1 # increase the slack var index
+    for i in range(len(lp_system)):
+        if 'LT' in lp_system[i] or 'GT' in lp_system[i]:
+            if 'LT' in lp_system[i]:
+                labels_base.append(slack_excess_var_index_start + 1)
 
-    logger.info('Coverted the equations to their standard form.')
+            lp_system[i] = add_additional_variable(lp_system[i], slack_excess_var_index_start)
+            slack_excess_var_index_start += 1  # increase the slack/excess var index
+
+    lp_system = reverse_if_rhs_negative(lp_system)
+
+    logger.info('Coverted the equations to their standard form.\n\n')
     return lp_system, labels_base
 
 
-def convert_equation_to_standard_form(equation, slack_excess_var_index_start):
+def add_artificial_variables_to_system(lp_system, initial_no_vars):
+    transpose = [[lp_system[j][i] for j in range(len(lp_system))] for i in range(len(lp_system[0]))]
+
+    slack_excess_var_index_start = initial_no_vars
+    artifical_var_index_start = len(lp_system[0]) - 2
+
+    labels_base = []
+    index_eq = 0
+
+    for column in transpose[-len(lp_system)-2: -2]:
+        if column.count(0) != len(column) - 1 or column.count(1) != 1:
+            lp_system = add_slack_excess_column_to_equations(lp_system)
+            lp_system[index_eq] = add_additional_variable(lp_system[index_eq], artifical_var_index_start, artificial=True)
+            labels_base.append(artifical_var_index_start + 1)
+            artifical_var_index_start += 1
+        else:
+            labels_base.append(slack_excess_var_index_start + 1)
+
+        slack_excess_var_index_start += 1
+        index_eq += 1
+
+    return lp_system, labels_base
+
+
+def prepare_system_for_two_phase_algorithm(lp_system, initial_no_vars):
+    lp_system, labels_vars_from_base = convert_system_to_standard_form(lp_system, initial_no_vars)
+    lp_system, labels_vars_from_base = add_artificial_variables_to_system(lp_system, initial_no_vars)
+
+    logger.info('The system after converting to standard form and after adding the artificial variables is: \n\n' +
+                str(pd.DataFrame(lp_system,
+                                 columns=get_column_names_standard_form(len(lp_system[0])),
+                                 index=['x_' + str(index) for index in labels_vars_from_base])) + '\n\n')
+
+    return lp_system, labels_vars_from_base
+
+
+def add_additional_variable(equation, slack_excess_var_index_start, artificial=False):
+
     if equation[-2] == 'LT':
         equation[slack_excess_var_index_start] = 1
         equation[-2] = 'E'
         return equation
+
     if equation[-2] == 'E':
+        if artificial:
+            equation[slack_excess_var_index_start] = 1
         return equation
+
     if equation[-2] == 'GT':
         equation[slack_excess_var_index_start] = -1
         equation[-2] = 'E'
