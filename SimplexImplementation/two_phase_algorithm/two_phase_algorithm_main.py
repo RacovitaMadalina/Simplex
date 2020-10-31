@@ -1,8 +1,6 @@
-import pandas as pd
-
-from two_phase_algorithm.utils import *
-from two_phase_algorithm.config import logger
-from two_phase_algorithm.standard_form_conversion import *
+from two_phase_algorithm.phase_one_input_conversion import *
+from two_phase_algorithm.phase_two_input_conversion import *
+from two_phase_algorithm.simplex_algorithm import *
 
 
 def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
@@ -14,8 +12,29 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
 
     logger.info("Started to prepare the system for the two phase algorithm. \n\n")
 
-    lp_system, labels_vars_from_base = prepare_system_for_two_phase_algorithm(lp_system,
-                                                                              initial_no_vars=len(lp_system[0]) - 2)
+    lp_system, labels_vars_from_base = prepare_system_for_phase_one(lp_system,
+                                                                    initial_no_vars=len(lp_system[0]) - 2)
+
+    z_phase_1 = retrieve_new_z_as_sum_of_artificial_variables(lp_system, labels_vars_from_base)
+
+    if z_phase_1 != None:
+        logger.info("Since we have artificial variables added, the new "
+                    "cost function to be optimized is the following: \n" +
+                    "z = " + str(z_phase_1) + '\n\n')
+
+        logger.info("\n\n-------------------------   PHASE 1   --------------------------------\n\n")
+        simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
+            lp_system, labels_vars_from_base, z=z_phase_1[:-1], z_free_term=z_phase_1[-1])
+
+        if solution != None:
+            simplex_tableau_phase_two = prepare_system_for_phase_two(simplex_matrix, column_names, z, z_free_term)
+            column_names = [col_name for col_name in column_names if 'y_' not in col_name]
+
+            logger.info('The system for the second phase afetr removing the artificial variables \n'
+                        'and after replacing the initial cost function is: \n' +
+                        str(str(pd.DataFrame(simplex_tableau_phase_two,
+                                             columns=column_names,
+                                             index=labels_vars_from_base))) + '\n\n')
 
 
 if __name__ == '__main__':

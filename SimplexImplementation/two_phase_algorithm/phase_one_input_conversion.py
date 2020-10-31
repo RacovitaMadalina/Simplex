@@ -65,27 +65,15 @@ def add_artificial_variables_to_system(lp_system, initial_no_vars):
         if column.count(0) != len(column) - 1 or column.count(1) != 1:
             lp_system = add_slack_excess_column_to_equations(lp_system)
             lp_system[index_eq] = add_additional_variable(lp_system[index_eq], artifical_var_index_start, artificial=True)
-            labels_base.append(artifical_var_index_start + 1)
+            labels_base.append('y_' + str(artifical_var_index_start + 1))
             artifical_var_index_start += 1
         else:
-            labels_base.append(slack_excess_var_index_start + 1)
+            labels_base.append('x_' + str(slack_excess_var_index_start + 1))
 
         slack_excess_var_index_start += 1
         index_eq += 1
 
     return lp_system, labels_base
-
-
-def prepare_system_for_two_phase_algorithm(lp_system, initial_no_vars):
-    lp_system, labels_vars_from_base = convert_system_to_standard_form(lp_system, initial_no_vars)
-    lp_system, labels_vars_from_base = add_artificial_variables_to_system(lp_system, initial_no_vars)
-
-    logger.info('The system after converting to standard form and after adding the artificial variables is: \n\n' +
-                str(pd.DataFrame(lp_system,
-                                 columns=get_column_names_standard_form(len(lp_system[0])),
-                                 index=['x_' + str(index) for index in labels_vars_from_base])) + '\n\n')
-
-    return lp_system, labels_vars_from_base
 
 
 def add_additional_variable(equation, slack_excess_var_index_start, artificial=False):
@@ -104,3 +92,39 @@ def add_additional_variable(equation, slack_excess_var_index_start, artificial=F
         equation[slack_excess_var_index_start] = -1
         equation[-2] = 'E'
         return equation
+
+
+def prepare_system_for_phase_one(lp_system, initial_no_vars):
+    lp_system, labels_vars_from_base = convert_system_to_standard_form(lp_system, initial_no_vars)
+    lp_system, labels_vars_from_base = add_artificial_variables_to_system(lp_system, initial_no_vars)
+
+    logger.info('The system after converting to standard form and after adding the artificial variables is: \n\n' +
+                str(pd.DataFrame(lp_system,
+                                 columns=get_column_names_input_conversion(len(lp_system[0]), labels_vars_from_base),
+                                 index=labels_vars_from_base)) + '\n\n')
+
+    return lp_system, labels_vars_from_base
+
+
+def get_number_of_artificial_variables(labels_vars_from_base):
+    return sum([1 for label in labels_vars_from_base if 'y' in label])
+
+
+def retrieve_new_z_as_sum_of_artificial_variables(lp_system, labels_vars_from_base):
+    no_of_artificial_vars = get_number_of_artificial_variables(labels_vars_from_base)
+    if no_of_artificial_vars == 0:
+        return None
+
+    # initialize the new z
+    z = [0] * (len(lp_system[0]) - 2 - no_of_artificial_vars)
+    z += [0]  # z - free term
+
+    for index_eq in range(len(labels_vars_from_base)):
+        if 'y_' in labels_vars_from_base[index_eq]:  # meaning that the current label is an artificial variable
+            index_artificial = labels_vars_from_base[index_eq].split('_')[1]
+
+            z[-1] += lp_system[index_eq][-1]
+            for index_term in range(len(lp_system[index_eq][:- 2 - no_of_artificial_vars])):
+                if index_term != index_artificial:
+                    z[index_term] -= lp_system[index_eq][index_term]
+    return z

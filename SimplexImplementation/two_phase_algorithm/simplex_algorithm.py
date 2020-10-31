@@ -1,5 +1,5 @@
-from simplex_h1.utils import *
-from simplex_h1.convertion_to_standard_form import *
+from two_phase_algorithm.utils import *
+from two_phase_algorithm.config import logger
 
 
 def get_index_negative_cost(simplex_matrix):
@@ -97,12 +97,13 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
 
     if index_cost_negative == -1:
         logger.info("The system has no solution. \n\n")
+        return None, None, None, None
 
     while index_cost_negative != -1:
         pivot_index = get_pivot_given_index(simplex_matrix, index_cost_negative)
         if pivot_index == -1:
             logger.info(f"The system has an unbounded solution.\n\n")
-            return
+            return None, None, None, None
 
         logger.info(f"The pivot chosed based in the Bland's rule is: simplex_matrix[%s][%s] = %s"
                     % (pivot_index, index_cost_negative,
@@ -124,80 +125,39 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
             logger.info(prettify_solution(solution))
             logger.info("The value for z is : " + str(get_cost_value_based_on_solution(solution, z, z_free_term)))
 
-            # check for alternative solutions
-            i_zero_alternative = check_for_alternative_solution(simplex_matrix, labels_vars_from_base)
-
-            if i_zero_alternative != -1:
-                pivot_index = get_pivot_given_index(simplex_matrix, i_zero_alternative)
-
-                if pivot_index != -1:
-                    simplex_matrix = exceed_pivotation(simplex_matrix, pivot_index, i_zero_alternative)
-                    labels_vars_from_base = update_labels_base_vars_after_pivoting(column_names, labels_vars_from_base,
-                                                                                   pivot_index, i_zero_alternative)
-
-                    logger.info('The system after the pivoting step is: \n\n' +
-                                str(pd.DataFrame(simplex_matrix,
-                                                 columns=column_names,
-                                                 index=labels_vars_from_base)) + '\n\n')
+            # # check for alternative solutions
+            # i_zero_alternative = check_for_alternative_solution(simplex_matrix, labels_vars_from_base)
+            #
+            # if i_zero_alternative != -1:
+            #     pivot_index = get_pivot_given_index(simplex_matrix, i_zero_alternative)
+            #
+            #     if pivot_index != -1:
+            #         simplex_matrix = exceed_pivotation(simplex_matrix, pivot_index, i_zero_alternative)
+            #         labels_vars_from_base = update_labels_base_vars_after_pivoting(column_names, labels_vars_from_base,
+            #                                                                        pivot_index, i_zero_alternative)
+            #
+            #         logger.info('The system after the pivoting step is: \n\n' +
+            #                     str(pd.DataFrame(simplex_matrix,
+            #                                      columns=column_names,
+            #                                      index=labels_vars_from_base)) + '\n\n')
 
             logger.info("The simplex iterations are finished. \n\n")
-            return solution
+            return simplex_matrix, column_names, labels_vars_from_base, solution
 
 
-def run_simplex_on_instance(lp_system, z, z_free_term):
+def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term):
     original_z = z.copy()
-    lp_system, labels_vars_from_base = convert_system_to_standard_form(lp_system, initial_no_vars=len(lp_system[0]) - 2)
-
-    logger.info('The converted system is: \n\n' +
-                str(pd.DataFrame(lp_system,
-                                 columns=get_column_names_standard_form(len(lp_system[0])),
-                                 index=labels_vars_from_base)) + '\n\n')
-
     simplex_tableau_as_matrix = get_simplex_tableau_as_matrix(lp_system, z, z_free_term)
+
     simplex_pd_df = convert_simplex_tableau_to_pd_df(simplex_tableau_as_matrix, labels_vars_from_base)
 
     logger.info('The simplex tableau is: \n\n' + str(simplex_pd_df) + '\n\n')
 
-    column_names = get_column_names_simplex_tableau(len(simplex_tableau_as_matrix[0]))
-    labels_vars_from_base = get_labels_base_vars_by_index(labels_vars_from_base)
+    column_names = get_column_names_simplex_tableau(len(lp_system[0]), labels_vars_from_base)
+    labels_vars_from_base = get_labels_simplex_tableau(labels_vars_from_base)
 
-    solution = simplex_algorithm(simplex_tableau_as_matrix, column_names, labels_vars_from_base, original_z, z_free_term)
-
-
-if __name__ == '__main__':
-
-    logger.info("\n\n-------------------------   EXAMPLE 1 FROM THE SEMINAR   --------------------------------\n\n")
-    run_simplex_on_instance(lp_system= [[0.5, -5.5, -2.5, 9, 'LT', 0],
-                                         [0.5, -1.5, -0.5, 1, 'LT', 0],
-                                         [1, 0, 0, 0, 'LT', 1]],
-                            z=[-10, 57, 9, 24],
-                            z_free_term=2)
-
-    logger.info('Finished the execution for the current instance. \n\n\n')
-
-    logger.info("\n\n-------------------------   EXAMPLE 2 / HOMEWORK 1.3, ex.4, a)   "
-                "--------------------------------\n\n")
-
-    run_simplex_on_instance(lp_system=[[-2, 1, 'LT', 2],
-                                       [-1, 2, 'LT', 7],
-                                       [1, 0, 'LT', 3]],
-                            z=[-1, -1],
-                            z_free_term=0)
-
-    logger.info("\n\n-------------------------   EXAMPLE 3 / HOMEWORK 1.3, ex.4, b)   "
-                "---------------------------- \n\n")
-
-    run_simplex_on_instance(lp_system=[[-1, 1, 'LT', 2],
-                                       [-2, 1, 'LT', 1]],
-                            z=[-1, -2],
-                            z_free_term=0)
-
-    logger.info("\n\n -------------------------   EXAMPLE 4 / HOMEWORK 1.3, ex.4, c)  ----------------------------\n\n")
-
-    run_simplex_on_instance(lp_system=[[4, 5, -2, 'LT', 22],
-                                       [1, -2, 1, 'LT', 30]],
-                            z=[3, -2, -4],
-                            z_free_term=0)
-
-
-
+    simplex_matrix, column_names, labels_vars_from_base, solution = simplex_algorithm(simplex_tableau_as_matrix,
+                                                                                      column_names,
+                                                                                      labels_vars_from_base,
+                                                                                      original_z, z_free_term)
+    return simplex_matrix, column_names, labels_vars_from_base, solution
