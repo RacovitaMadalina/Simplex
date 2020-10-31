@@ -1,4 +1,4 @@
-from simplex_two_phase_algorithm.config import logger
+from two_phase_algorithm.config import logger
 
 
 def add_slack_excess_column_to_equations(lp_system):
@@ -9,6 +9,7 @@ def add_slack_excess_column_to_equations(lp_system):
         equation[-3] = 0
         new_matrix.append(equation)
     return new_matrix
+
 
 def convert_system_to_standard_form(lp_system, initial_no_vars):
     logger.info("Starting converting the system to its standard form.")
