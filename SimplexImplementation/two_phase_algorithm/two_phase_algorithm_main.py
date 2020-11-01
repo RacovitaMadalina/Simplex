@@ -27,14 +27,20 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
             lp_system, labels_vars_from_base, z=z_phase_1[:-1], z_free_term=z_phase_1[-1])
 
         if solution != None:
-            simplex_tableau_phase_two = prepare_system_for_phase_two(simplex_matrix, column_names, z, z_free_term)
+            simplex_tableau_phase_two, z, z_free_term, labels_vars_from_base = prepare_system_for_phase_two(
+                simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
+
             column_names = [col_name for col_name in column_names if 'y_' not in col_name]
 
-            logger.info('The system for the second phase afetr removing the artificial variables \n'
+            logger.info('The system for the second phase after removing the artificial variables \n'
                         'and after replacing the initial cost function is: \n' +
-                        str(str(pd.DataFrame(simplex_tableau_phase_two,
-                                             columns=column_names,
-                                             index=labels_vars_from_base))) + '\n\n')
+                        str(pd.DataFrame(simplex_tableau_phase_two,
+                                         columns=column_names,
+                                         index=labels_vars_from_base)) + '\n\n')
+
+            simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
+                simplex_tableau_phase_two, labels_vars_from_base, z=z, z_free_term=z_free_term,
+                already_tableau=True, column_names=column_names, search_alternative=True)
 
 
 if __name__ == '__main__':
@@ -47,7 +53,7 @@ if __name__ == '__main__':
                               z_free_term=0,
                               optimization_type='max')
 
-    logger.info("\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, a)   -----------------------\n\n")
+    logger.info("\n\n\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, a)   -----------------------\n\n")
 
     run_two_phase_on_instance(lp_system=[[1, 1, 'GT', 6],
                                          [2, 3, 'LT', 4]],
@@ -55,7 +61,7 @@ if __name__ == '__main__':
                               z_free_term=0,
                               optimization_type='min')
 
-    logger.info("\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, b)   -----------------------\n\n")
+    logger.info("\n\n\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, b)   -----------------------\n\n")
 
     run_two_phase_on_instance(lp_system=[[2, 1, 1, 'E', 4],
                                          [1, 1, 2, 'E', 2]],
@@ -63,7 +69,7 @@ if __name__ == '__main__':
                               z_free_term=0,
                               optimization_type='min')
 
-    logger.info("\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, c)   -----------------------\n\n")
+    logger.info("\n\n\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, c)   -----------------------\n\n")
 
     run_two_phase_on_instance(lp_system=[[1, 2, -1, 1, 'E', 0],
                                          [2, -2, 3, 3, 'E', 9],
@@ -72,7 +78,7 @@ if __name__ == '__main__':
                               z_free_term=0,
                               optimization_type='min')
 
-    logger.info("\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, c)   -----------------------\n\n")
+    logger.info("\n\n\n\n--------------------   EXAMPLE 2 / HOMEWORK 2.1, ex.2, c)   -----------------------\n\n")
 
     run_two_phase_on_instance(lp_system=[[1, 1, 'E', 2],
                                          [2, 2, 'E', 4]],

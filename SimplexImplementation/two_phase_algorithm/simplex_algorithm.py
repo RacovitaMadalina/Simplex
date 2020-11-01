@@ -3,7 +3,7 @@ from two_phase_algorithm.config import logger
 
 
 def get_index_negative_cost(simplex_matrix):
-    cost_line = simplex_matrix[-1]
+    cost_line = simplex_matrix[-1][:-1]
     for index in range(len(cost_line)):
         if cost_line[index] < 0:
             return index
@@ -16,7 +16,7 @@ def get_pivot_given_index(simplex_matrix, index_cost_negative):
     for index_equation in range(len(simplex_matrix[:-1])):
         if simplex_matrix[index_equation][index_cost_negative] > 0:
             positive_per_rhs.append(simplex_matrix[index_equation][-1] /
-                                     simplex_matrix[index_equation][index_cost_negative])
+                                    simplex_matrix[index_equation][index_cost_negative])
             indexes_positive.append(index_equation)
 
     if len(indexes_positive) != 0:
@@ -61,7 +61,8 @@ def get_solution(simplex_matrix, labels_vars_from_base, column_names):
     solution = []
     for index_var in range(len(column_names) - 1):
         if column_names[index_var] in labels_vars_from_base:
-            solution.append((column_names[index_var], simplex_matrix[labels_vars_from_base.index(column_names[index_var])][-1]))
+            solution.append(
+                (column_names[index_var], simplex_matrix[labels_vars_from_base.index(column_names[index_var])][-1]))
         else:
             solution.append((column_names[index_var], 0))
     return solution
@@ -92,12 +93,59 @@ def check_for_alternative_solution(simplex_matrix, labels_vars_from_base):
     return -1
 
 
-def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term):
+def check_if_simplex_tableau_is_optimal(simplex_matrix, labels_vars_from_base):
+    indexes_base_vars = [int(label.split('_')[1]) - 1 for label in labels_vars_from_base[:-1]]
+    cost_line = simplex_matrix[-1]
+
+    for index in indexes_base_vars:
+        if cost_line[index] != 0:
+           return False
+
+    return True
+
+def get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term):
+    solution = get_solution(simplex_matrix, labels_vars_from_base, column_names)
+    logger.info(prettify_solution(solution))
+    logger.info("The value for z is : " + str(get_cost_value_based_on_solution(solution, z, z_free_term)))
+    return solution
+
+
+def search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term):
+
+    # check for alternative solutions
+    i_zero_alternative = check_for_alternative_solution(simplex_matrix, labels_vars_from_base)
+
+    if i_zero_alternative != -1:
+        pivot_index = get_pivot_given_index(simplex_matrix, i_zero_alternative)
+
+        if pivot_index != -1:
+            simplex_matrix = exceed_pivotation(simplex_matrix, pivot_index, i_zero_alternative)
+            labels_vars_from_base = update_labels_base_vars_after_pivoting(column_names, labels_vars_from_base,
+                                                                           pivot_index, i_zero_alternative)
+
+            logger.info('The system after the pivoting step is: \n\n' +
+                        str(pd.DataFrame(simplex_matrix,
+                                         columns=column_names,
+                                         index=labels_vars_from_base)) + '\n\n')
+
+            solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
+            return solution
+
+    return None
+
+
+def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term, search_alternative=False):
     index_cost_negative = get_index_negative_cost(simplex_matrix)
 
     if index_cost_negative == -1:
-        logger.info("The system has no solution. \n\n")
-        return None, None, None, None
+        optimal = check_if_simplex_tableau_is_optimal(simplex_matrix, labels_vars_from_base)
+        if not optimal:
+            logger.info("The simplex tableau is not optimal. The system has no solution. \n\n")
+            return None, None, None, None
+        else:
+            logger.info("The simplex tableau is optimal.\n\n")
+            solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
+            return simplex_matrix, column_names, labels_vars_from_base, solution
 
     while index_cost_negative != -1:
         pivot_index = get_pivot_given_index(simplex_matrix, index_cost_negative)
@@ -121,43 +169,37 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
         index_cost_negative = get_index_negative_cost(simplex_matrix)
 
         if index_cost_negative == -1:
-            solution = get_solution(simplex_matrix, labels_vars_from_base, column_names)
-            logger.info(prettify_solution(solution))
-            logger.info("The value for z is : " + str(get_cost_value_based_on_solution(solution, z, z_free_term)))
-
-            # # check for alternative solutions
-            # i_zero_alternative = check_for_alternative_solution(simplex_matrix, labels_vars_from_base)
-            #
-            # if i_zero_alternative != -1:
-            #     pivot_index = get_pivot_given_index(simplex_matrix, i_zero_alternative)
-            #
-            #     if pivot_index != -1:
-            #         simplex_matrix = exceed_pivotation(simplex_matrix, pivot_index, i_zero_alternative)
-            #         labels_vars_from_base = update_labels_base_vars_after_pivoting(column_names, labels_vars_from_base,
-            #                                                                        pivot_index, i_zero_alternative)
-            #
-            #         logger.info('The system after the pivoting step is: \n\n' +
-            #                     str(pd.DataFrame(simplex_matrix,
-            #                                      columns=column_names,
-            #                                      index=labels_vars_from_base)) + '\n\n')
+            solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
+            if search_alternative:
+                solution_alternative = search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names,
+                                                                       z, z_free_term)
 
             logger.info("The simplex iterations are finished. \n\n")
             return simplex_matrix, column_names, labels_vars_from_base, solution
 
 
-def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term):
+def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term,
+                            already_tableau=False, column_names=None, search_alternative=False):
     original_z = z.copy()
-    simplex_tableau_as_matrix = get_simplex_tableau_as_matrix(lp_system, z, z_free_term)
 
-    simplex_pd_df = convert_simplex_tableau_to_pd_df(simplex_tableau_as_matrix, labels_vars_from_base)
+    if not already_tableau:
+        simplex_tableau_as_matrix = get_simplex_tableau_as_matrix(lp_system, z, z_free_term)
+        simplex_pd_df = convert_simplex_tableau_to_pd_df(simplex_tableau_as_matrix, labels_vars_from_base)
+    else:
+        simplex_tableau_as_matrix = lp_system
+        simplex_pd_df = pd.DataFrame(lp_system,
+                                     columns=column_names,
+                                     index=labels_vars_from_base)
 
     logger.info('The simplex tableau is: \n\n' + str(simplex_pd_df) + '\n\n')
 
-    column_names = get_column_names_simplex_tableau(len(lp_system[0]), labels_vars_from_base)
-    labels_vars_from_base = get_labels_simplex_tableau(labels_vars_from_base)
+    if not already_tableau:
+        labels_vars_from_base = get_labels_simplex_tableau(labels_vars_from_base)
+        column_names = get_column_names_simplex_tableau(len(lp_system[0]), labels_vars_from_base)
 
     simplex_matrix, column_names, labels_vars_from_base, solution = simplex_algorithm(simplex_tableau_as_matrix,
                                                                                       column_names,
                                                                                       labels_vars_from_base,
-                                                                                      original_z, z_free_term)
+                                                                                      original_z, z_free_term,
+                                                                                      search_alternative)
     return simplex_matrix, column_names, labels_vars_from_base, solution
