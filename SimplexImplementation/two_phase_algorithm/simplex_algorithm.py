@@ -36,6 +36,8 @@ def exceed_pivotation(simplex_matrix, pivot_index, index_cost_negative_chosen):
                          simplex_matrix[index_line][index_cost_negative_chosen] *
                          simplex_matrix[pivot_index][index_column]) / \
                         simplex_matrix[pivot_index][index_cost_negative_chosen]
+                    if simplex_matrix[index_line][index_column] == 0:
+                        simplex_matrix[index_line][index_column] = 0
 
     for index_line in range(len(simplex_matrix)):
         if index_line != pivot_index:
@@ -45,6 +47,8 @@ def exceed_pivotation(simplex_matrix, pivot_index, index_cost_negative_chosen):
         if index_column != index_cost_negative_chosen:
             simplex_matrix[pivot_index][index_column] = simplex_matrix[pivot_index][index_column] / \
                                                         simplex_matrix[pivot_index][index_cost_negative_chosen]
+            if simplex_matrix[pivot_index][index_column] == 0:
+                simplex_matrix[pivot_index][index_column] = 0
 
     simplex_matrix[pivot_index][index_cost_negative_chosen] = 1.0
     return simplex_matrix
@@ -100,8 +104,8 @@ def check_if_simplex_tableau_is_optimal(simplex_matrix, labels_vars_from_base):
     for index in indexes_base_vars:
         if cost_line[index] != 0:
            return False
-
     return True
+
 
 def get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term):
     solution = get_solution(simplex_matrix, labels_vars_from_base, column_names)
@@ -110,8 +114,51 @@ def get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z,
     return solution
 
 
-def search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term):
+def get_non_negative_x_value_on_line(simplex_tableaux, column_names, index_eq):
+    for index_term in range(len(simplex_tableaux[index_eq][:-1])):
+        if column_names[index_term].startswith('x') and simplex_tableaux[index_eq][index_term] != 0:
+            return index_term
+    return None
 
+
+def remove_artificial_variables_from_base(simplex_tableaux, column_names, labels_vars_from_base):
+    flag_there_are_redundant_eq = False
+    modified_simplex_tableau = []
+    for index_eq in range(len(labels_vars_from_base)):
+        # we have currently an artificial variable in base
+        if labels_vars_from_base[index_eq].startswith('y'):
+
+            # we iterate through that line search for values != 0 for x-es
+            idx_non_negative_x = get_non_negative_x_value_on_line(simplex_tableaux, column_names, index_eq)
+
+            if idx_non_negative_x == None:
+                # it means that eq is redundant so we can omit it for phase 2
+                flag_there_are_redundant_eq = True
+                continue
+            else:
+                to_be_removed = labels_vars_from_base[index_eq]
+                simplex_tableaux = exceed_pivotation(simplex_tableaux, index_eq, idx_non_negative_x)
+                labels_vars_from_base = update_labels_base_vars_after_pivoting(column_names, labels_vars_from_base,
+                                                                               index_eq, idx_non_negative_x)
+                logger.info('The system after the removing the variable ' + to_be_removed +
+                            ' from base is  \n\n' + str(pd.DataFrame(simplex_tableaux,
+                                                                     columns=column_names,
+                                                                     index=labels_vars_from_base)) + '\n\n')
+                modified_simplex_tableau.append(simplex_tableaux[index_eq])
+        else:
+            modified_simplex_tableau.append(simplex_tableaux[index_eq])
+
+    if flag_there_are_redundant_eq:
+        labels_vars_from_base = [label for label in labels_vars_from_base if 'y' not in label]
+
+        logger.info('The system after the removing all the redundant equations is  \n\n' +
+                    str(pd.DataFrame(modified_simplex_tableau, columns=column_names,
+                                     index=labels_vars_from_base)) + '\n\n')
+
+    return modified_simplex_tableau, labels_vars_from_base
+
+
+def search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term):
     # check for alternative solutions
     i_zero_alternative = check_for_alternative_solution(simplex_matrix, labels_vars_from_base)
 
@@ -134,7 +181,33 @@ def search_for_alternative_solution(simplex_matrix, labels_vars_from_base, colum
     return None
 
 
-def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term, search_alternative=False):
+def finish_simplex_step(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term,
+                        search_alternative=False, phase_one=False):
+
+    simplex_matrix, labels_vars_from_base = remove_artificial_variables_from_base(simplex_matrix, column_names,
+                                                                                  labels_vars_from_base)
+
+    if phase_one and simplex_matrix[-1][-1] != 0:
+        logger.info("The value for z is different than 0. The problem is infeasible. The second phase is "
+                    "not going to be executed. \n\n")
+        return None, None, None, None
+
+    if phase_one and simplex_matrix[-1][-1] == 0:
+        logger.info("The simplex tableau is optimal. The initial problem is feasible. The second phase is "
+                    "going to be started.\n\n")
+    else:
+        logger.info("The simplex tableau is optimal.\n\n")
+
+    solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
+    if search_alternative:
+        solution_alternative = search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names,
+                                                               z, z_free_term)
+    logger.info("The simplex iterations are finished. \n\n")
+    return simplex_matrix, column_names, labels_vars_from_base, solution
+
+
+def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term,
+                      search_alternative=False, phase_one=False):
     index_cost_negative = get_index_negative_cost(simplex_matrix)
 
     if index_cost_negative == -1:
@@ -143,9 +216,8 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
             logger.info("The simplex tableau is not optimal. The system has no solution. \n\n")
             return None, None, None, None
         else:
-            logger.info("The simplex tableau is optimal.\n\n")
-            solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
-            return simplex_matrix, column_names, labels_vars_from_base, solution
+            return finish_simplex_step(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term,
+                                       search_alternative, phase_one)
 
     while index_cost_negative != -1:
         pivot_index = get_pivot_given_index(simplex_matrix, index_cost_negative)
@@ -166,20 +238,18 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
                                      columns=column_names,
                                      index=labels_vars_from_base)) + '\n\n')
 
+        if phase_one and simplex_matrix[-1][-1] == 0:
+            return finish_simplex_step(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term,
+                                       search_alternative, phase_one)
+
         index_cost_negative = get_index_negative_cost(simplex_matrix)
-
         if index_cost_negative == -1:
-            solution = get_simplex_solution(simplex_matrix, labels_vars_from_base, column_names, z, z_free_term)
-            if search_alternative:
-                solution_alternative = search_for_alternative_solution(simplex_matrix, labels_vars_from_base, column_names,
-                                                                       z, z_free_term)
-
-            logger.info("The simplex iterations are finished. \n\n")
-            return simplex_matrix, column_names, labels_vars_from_base, solution
+            return finish_simplex_step(simplex_matrix, column_names, labels_vars_from_base, z, z_free_term,
+                                       search_alternative, phase_one)
 
 
 def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term,
-                            already_tableau=False, column_names=None, search_alternative=False):
+                            already_tableau=False, column_names=None, search_alternative=False, phase_one=False):
     original_z = z.copy()
 
     if not already_tableau:
@@ -201,5 +271,6 @@ def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term,
                                                                                       column_names,
                                                                                       labels_vars_from_base,
                                                                                       original_z, z_free_term,
-                                                                                      search_alternative)
+                                                                                      search_alternative,
+                                                                                      phase_one)
     return simplex_matrix, column_names, labels_vars_from_base, solution

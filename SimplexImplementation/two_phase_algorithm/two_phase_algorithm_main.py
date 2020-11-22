@@ -24,7 +24,7 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
 
         logger.info("\n\n-------------------------   PHASE 1   --------------------------------\n\n")
         simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
-            lp_system, labels_vars_from_base, z=z_phase_1[:-1], z_free_term=z_phase_1[-1])
+            lp_system, labels_vars_from_base, z=z_phase_1[:-1], z_free_term=z_phase_1[-1], phase_one=True)
 
         if solution != None:
             simplex_tableau_phase_two, z, z_free_term, labels_vars_from_base = prepare_system_for_phase_two(
@@ -85,6 +85,4 @@ if __name__ == '__main__':
                               z=[1, 2],
                               z_free_term=0,
                               optimization_type='min')
-
-
 

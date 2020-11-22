@@ -1,6 +1,7 @@
 import pandas as pd
 
 from two_phase_algorithm.config import logger
+from two_phase_algorithm.simplex_algorithm import exceed_pivotation, update_labels_base_vars_after_pivoting
 
 
 def remove_artificial_variables_columns(simplex_tableaux, column_names):
@@ -15,15 +16,6 @@ def remove_artificial_variables_columns(simplex_tableaux, column_names):
                 simplex_tableaux_cols_dropped[-1].append(simplex_tableaux[eq_index][var_index])
 
     return simplex_tableaux_cols_dropped
-
-
-def remove_artificial_variables_from_base(simplex_tableaux, labels_vars_from_base):
-    index_eq = 0
-    modified_simplex_tableau = []
-    for index_eq in range(len(labels_vars_from_base)):
-        if not labels_vars_from_base[index_eq].startswith('y'):
-            modified_simplex_tableau.append(simplex_tableaux[index_eq])
-    return modified_simplex_tableau
 
 
 def replace_z_in_simplex_tableau(simplex_tableaux, z, z_free_term):
@@ -89,10 +81,6 @@ def pad_z_with_0_for_slack_excess_vars(simplex_tableaux, z):
 
 def prepare_system_for_phase_two(simplex_tableaux, labels_vars_from_base, column_names, z, z_free_term):
     simplex_tableaux = remove_artificial_variables_columns(simplex_tableaux, column_names)
-
-    # if by change among the base variables resulted after running simplex in phase 1
-    simplex_tableaux = remove_artificial_variables_from_base(simplex_tableaux, labels_vars_from_base)
-    labels_vars_from_base = [label for label in labels_vars_from_base if not label.startswith('y')]
 
     z = pad_z_with_0_for_slack_excess_vars(simplex_tableaux, z)
 
