@@ -123,7 +123,7 @@ def retrieve_new_z_as_sum_of_artificial_variables(lp_system, labels_vars_from_ba
         if 'y_' in labels_vars_from_base[index_eq]:  # meaning that the current label is an artificial variable
             index_artificial = labels_vars_from_base[index_eq].split('_')[1]
 
-            z[-1] += lp_system[index_eq][-1]
+            z[-1] -= lp_system[index_eq][-1]
             for index_term in range(len(lp_system[index_eq][:- 2 - no_of_artificial_vars])):
                 if index_term != index_artificial:
                     z[index_term] -= lp_system[index_eq][index_term]
