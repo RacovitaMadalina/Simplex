@@ -41,9 +41,14 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
             simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
                 simplex_tableau_phase_two, labels_vars_from_base, z=z, z_free_term=z_free_term,
                 already_tableau=True, column_names=column_names, search_alternative=True)
+    else:
+        logger.info("Phase one can't be executed since no artificial variables were added.")
+        simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
+            lp_system, labels_vars_from_base, z=z, z_free_term=z_free_term, phase_one=False)
 
 
 if __name__ == '__main__':
+    run_two_phase_on_instance(lp_system=[[1, 1, "LT", 2]], z=[1, 1], z_free_term=0, optimization_type="max")
 
     logger.info("\n\n-------------------------   EXAMPLE 1 FROM THE SEMINAR   --------------------------------\n\n")
     run_two_phase_on_instance(lp_system=[[1, 1, 1, 'LT', 6],
