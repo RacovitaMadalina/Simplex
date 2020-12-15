@@ -37,7 +37,6 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
                         str(pd.DataFrame(simplex_tableau_phase_two,
                                          columns=column_names,
                                          index=labels_vars_from_base)) + '\n\n')
-
             simplex_matrix, column_names, labels_vars_from_base, solution = run_simplex_on_instance(
                 simplex_tableau_phase_two, labels_vars_from_base, z=z, z_free_term=z_free_term,
                 already_tableau=True, column_names=column_names, search_alternative=True)
@@ -51,8 +50,8 @@ if __name__ == '__main__':
     run_two_phase_on_instance(lp_system=[[1, 1, "LT", 2]], z=[1, 1], z_free_term=0, optimization_type="max")
 
     run_two_phase_on_instance(lp_system=[[1.0, -2.0, 2.0, 1, 0, 0, 'E', 6.0], [1.0, 1.0, 2.0, 0, 1, 0, 'E', 8.0],
-                                         [0, 1, 0, -1, 0, 1, 'E', 0]], z=[1.0, -1.0, 2.0, 0, 0, 0], z_free_term = 0,
-                              optimization_type = "min")
+                                         [0, 1, 0, -1, 0, 1, 'E', 0]], z=[1.0, -1.0, 2.0, 0, 0, 0], z_free_term=0,
+                              optimization_type="min")
 
     logger.info("\n\n-------------------------   EXAMPLE 1 FROM THE SEMINAR   --------------------------------\n\n")
     run_two_phase_on_instance(lp_system=[[1, 1, 1, 'LT', 6],

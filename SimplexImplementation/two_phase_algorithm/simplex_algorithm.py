@@ -1,5 +1,5 @@
 from two_phase_algorithm.utils import *
-from two_phase_algorithm.config import logger
+from two_phase_algorithm.z_conversion import *
 
 
 def get_index_negative_cost(simplex_matrix):
@@ -251,6 +251,7 @@ def simplex_algorithm(simplex_matrix, column_names, labels_vars_from_base, z, z_
 def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term,
                             already_tableau=False, column_names=None, search_alternative=False, phase_one=False):
     original_z = z.copy()
+    original_free_term = z_free_term
 
     if not already_tableau:
         simplex_tableau_as_matrix = get_simplex_tableau_as_matrix(lp_system, z, z_free_term)
@@ -267,10 +268,14 @@ def run_simplex_on_instance(lp_system, labels_vars_from_base, z, z_free_term,
         labels_vars_from_base = get_labels_simplex_tableau(labels_vars_from_base)
         column_names = get_column_names_simplex_tableau(len(lp_system[0]), labels_vars_from_base)
 
-    simplex_matrix, column_names, labels_vars_from_base, solution = simplex_algorithm(simplex_tableau_as_matrix,
-                                                                                      column_names,
-                                                                                      labels_vars_from_base,
-                                                                                      original_z, z_free_term,
-                                                                                      search_alternative,
-                                                                                      phase_one)
-    return simplex_matrix, column_names, labels_vars_from_base, solution
+    simplex_tableau_as_matrix, z, z_free_term = modify_z_if_vars_from_base_have_zero_cost(simplex_tableau_as_matrix,
+                                                                                          labels_vars_from_base, column_names,
+                                                                                          z, z_free_term)
+
+    simplex_tableau_as_matrix, column_names, labels_vars_from_base, solution = simplex_algorithm(simplex_tableau_as_matrix,
+                                                                                                  column_names,
+                                                                                                  labels_vars_from_base,
+                                                                                                  original_z, original_free_term,
+                                                                                                  search_alternative,
+                                                                                                  phase_one)
+    return simplex_tableau_as_matrix, column_names, labels_vars_from_base, solution
