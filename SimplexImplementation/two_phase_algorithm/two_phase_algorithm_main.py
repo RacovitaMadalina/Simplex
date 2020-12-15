@@ -50,6 +50,10 @@ def run_two_phase_on_instance(lp_system, z, z_free_term, optimization_type):
 if __name__ == '__main__':
     run_two_phase_on_instance(lp_system=[[1, 1, "LT", 2]], z=[1, 1], z_free_term=0, optimization_type="max")
 
+    run_two_phase_on_instance(lp_system=[[1.0, -2.0, 2.0, 1, 0, 0, 'E', 6.0], [1.0, 1.0, 2.0, 0, 1, 0, 'E', 8.0],
+                                         [0, 1, 0, -1, 0, 1, 'E', 0]], z=[1.0, -1.0, 2.0, 0, 0, 0], z_free_term = 0,
+                              optimization_type = "min")
+
     logger.info("\n\n-------------------------   EXAMPLE 1 FROM THE SEMINAR   --------------------------------\n\n")
     run_two_phase_on_instance(lp_system=[[1, 1, 1, 'LT', 6],
                                          [-1, 1, 0, 'LT', -1],

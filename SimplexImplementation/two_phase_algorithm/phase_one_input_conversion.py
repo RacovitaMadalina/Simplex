@@ -53,25 +53,38 @@ def convert_system_to_standard_form(lp_system, initial_no_vars):
 
 
 def add_artificial_variables_to_system(lp_system, initial_no_vars):
+    no_of_eq = len(lp_system)
     transpose = [[lp_system[j][i] for j in range(len(lp_system))] for i in range(len(lp_system[0]))]
 
-    slack_excess_var_index_start = initial_no_vars
     artifical_var_index_start = len(lp_system[0]) - 2
-
     labels_base = []
-    index_eq = 0
+    index_col = 0
 
-    for column in transpose[-len(lp_system)-2: -2]:
-        if column.count(0) != len(column) - 1 or column.count(1) != 1:
-            lp_system = add_slack_excess_column_to_equations(lp_system)
-            lp_system[index_eq] = add_additional_variable(lp_system[index_eq], artifical_var_index_start, artificial=True)
-            labels_base.append('y_' + str(artifical_var_index_start + 1))
-            artifical_var_index_start += 1
-        else:
-            labels_base.append('x_' + str(slack_excess_var_index_start + 1))
+    for column in transpose[-len(lp_system[0])-2: -2]:
+        if column.count(0) == len(column) - 1 and column.count(1) == 1:
+            labels_base.append('x_' + str(index_col + 1))
+        index_col += 1
 
-        slack_excess_var_index_start += 1
-        index_eq += 1
+    if len(labels_base) < no_of_eq:  # this means we need to add some artificial variables:
+        # if we sum the columns corresponding to the already existent variables we are going to see which columns
+        # from the identity matrix are missing
+        summed_var_base_columns = [0 for i in range(len(lp_system))]
+        index_cols_base = [int(label.split('_')[1]) - 1 for label in labels_base]
+        for index in index_cols_base:
+            for i in range(len(summed_var_base_columns)):
+                summed_var_base_columns[i] += transpose[index][i]
+        print(summed_var_base_columns)
+
+        # for the indexes which in summed_var_base_columns are 0 we need to add artificial variable to form a complete
+        # identity matrix
+        for index_eq in range(len(summed_var_base_columns)):
+            if summed_var_base_columns[index_eq] == 0:
+                lp_system = add_slack_excess_column_to_equations(lp_system)
+                lp_system[index_eq] = add_additional_variable(lp_system[index_eq], artifical_var_index_start, artificial=True)
+                labels_base.append('y_' + str(artifical_var_index_start + 1))
+                artifical_var_index_start += 1
+            if len(labels_base) == no_of_eq:
+                break
 
     return lp_system, labels_base
 
